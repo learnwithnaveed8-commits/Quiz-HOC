@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RCNS Swat - Computer History Test</title>
+
+<style>
+:root { --royal-blue:#003366; --gold:#FFD700; }
+body { font-family:'Segoe UI',sans-serif;background:#f0f2f5;margin:0;display:flex;flex-direction:column;align-items:center;min-height:100vh;}
+header { background:var(--royal-blue);color:var(--gold);width:100%;text-align:center;padding:25px 0;box-shadow:0 4px 10px rgba(0,0,0,0.2);}
+.quiz-container { background:white;padding:30px;border-radius:15px;box-shadow:0 10px 25px rgba(0,0,0,0.1);width:90%;max-width:650px;margin-top:30px;position:relative;}
+#timer-bar { height:5px;background:#d9534f;width:100%;position:absolute;top:0;left:0;border-radius:15px 15px 0 0;transition:width 1s linear;}
+#timer-text { float:right;font-weight:bold;color:#d9534f;}
+.btn { display:block;width:100%;padding:14px;margin:10px 0;border:2px solid var(--royal-blue);border-radius:8px;cursor:pointer;transition:0.3s;font-size:16px;background:white;text-align:left;}
+.btn:hover { background:var(--royal-blue);color:white;}
+.btn:disabled { background:#ccc;cursor:not-allowed;}
+.hide { display:none;}
+input { padding:12px;width:95%;margin-bottom:20px;border:1px solid #ccc;border-radius:5px;font-size:16px;}
+.start-btn { background:var(--royal-blue);color:white;border:none;padding:15px;width:100%;border-radius:8px;cursor:pointer;font-size:18px;}
+.result-box { text-align:center; }
+.grade { font-size:1.3rem;font-weight:bold;margin-top:10px; }
+</style>
+</head>
+<body>
+
+<header>
+<h1>ROYAL COLLEGE OF NURSING SCIENCE SWAT</h1>
+<p>1st Semester Quiz - History of Computer</p>
+</header>
+
+<div class="quiz-container" id="setup-box">
+<h2 style="color:var(--royal-blue);">Student Registration</h2>
+<p>Enter your full name to begin the 20-question test.</p>
+<input type="text" id="student-name" placeholder="Full Name" required>
+<button class="start-btn" onclick="startQuiz()">Start Examination</button>
+</div>
+
+<div class="quiz-container hide" id="quiz-box">
+<div id="timer-bar"></div>
+<div style="margin-bottom:20px;">
+<span id="question-number" style="font-weight:bold;">Question 1/20</span>
+<span id="timer-text">15s</span>
+</div>
+<h2 id="question" style="min-height:60px;"></h2>
+<div id="answer-buttons"></div>
+</div>
+
+<div class="quiz-container hide result-box" id="result-box">
+<h2 style="color:var(--royal-blue);">Examination Result</h2>
+<p id="score-text" style="font-size:1.5rem;font-weight:bold;"></p>
+<p id="percentage-text"></p>
+<p id="grade-text" class="grade"></p>
+<p id="status-text">Uploading results...</p>
+<button class="btn" onclick="location.reload()" style="text-align:center;">Close & Restart</button>
+</div>
+
+<script>
+
+// 🔴 YAHAN APNA GOOGLE SCRIPT URL PASTE KAREIN
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4JEwdsdVXnEkUjJ9fkoSs0a3NuVNASCXMvPm5fDGMkTrE2PO4ObTyYbflbeoVhEvn/exec";
+
+const questions = [
+{q:"Where was the Abacus originally developed around 2500 BC?",a:["India","China","Babylon","Egypt"],c:2},
+{q:"Who developed the 'Napier bones' in 1617?",a:["John Von Neumann","John Napier","Blaise Pascal","Charles Babbage"],c:1},
+{q:"The 'Pascaline' calculator was developed to perform which operations?",a:["Multiplication/Division","Logarithms","Addition/Subtraction","Calculus"],c:2},
+{q:"Which inventor used punched cards in 1804?",a:["Herman Hollerith","Joseph Jacquard","Charles Babbage","Howard Aiken"],c:1},
+{q:"Who invented the Differential Engine (1822)?",a:["Charles Babbage","John Mauchly","Blaise Pascal","J.P. Eckert"],c:0},
+{q:"Analytical Engine (1833) was a:",a:["Mechanical loom","General purpose calculator","Log table","Tabulating machine"],c:1},
+{q:"Company formed by Hollerith later became:",a:["Apple","Microsoft","CTR Company","Intel"],c:2},
+{q:"First Automatic Electro Mechanical Computer?",a:["ENIAC","EDVAC","Mark-I","Abacus"],c:2},
+{q:"ENIAC used?",a:["Transistors","Vacuum tubes","Microchips","Steam"],c:1},
+{q:"EDVAC key feature?",a:["Water cooling","Stored memory","Gears","Wood rods"],c:1},
+{q:"Up until 1930s computers were:",a:["Electronic","Mechanical","Digital","Portable"],c:1},
+{q:"Mark-I supported by?",a:["Google","IBM","Microsoft","Dell"],c:1},
+{q:"ENIAC stands for?",a:["Electronic Numerical Integrator and Calculator","Network Auto Computer","Integrated Code","None"],c:0},
+{q:"ENIAC developers?",a:["Babbage","Von Neumann","Eckert & Mauchly","Hollerith"],c:2},
+{q:"ENIAC additions per second?",a:["100","1000","5000","50000"],c:2},
+{q:"Mark-I multiply time?",a:["1s","5s","1m","10s"],c:1},
+{q:"Punched cards used until?",a:["1950s","1960s","1980s","2000s"],c:2},
+{q:"ASCC length?",a:["10ft","25ft","51ft","100ft"],c:2},
+{q:"Napier bones used for?",a:["Add","Multiply/Divide","Log","Print"],c:1},
+{q:"Pascaline invented by?",a:["Pascal","Babbage","Neumann","Aiken"],c:0}
+];
+
+let current=0,score=0,timer,timeLeft=15,studentName="";
+
+window.history.pushState(null,null,location.href);
+window.onpopstate=function(){history.go(1);};
+window.onbeforeunload=function(){return "Exam in progress!";};
+
+function startQuiz(){
+studentName=document.getElementById("student-name").value.trim();
+if(studentName===""){alert("Please enter full name");return;}
+document.getElementById("setup-box").classList.add("hide");
+document.getElementById("quiz-box").classList.remove("hide");
+showQuestion();
+}
+
+function showQuestion(){
+resetTimer();
+let q=questions[current];
+document.getElementById("question-number").innerText=`Question ${current+1}/20`;
+document.getElementById("question").innerText=q.q;
+let container=document.getElementById("answer-buttons");
+container.innerHTML="";
+q.a.forEach((ans,i)=>{
+let btn=document.createElement("button");
+btn.innerText=ans;
+btn.classList.add("btn");
+btn.onclick=()=>selectAnswer(i);
+container.appendChild(btn);
+});
+}
+
+function resetTimer(){
+clearInterval(timer);
+timeLeft=15;
+updateTimer();
+timer=setInterval(()=>{
+timeLeft--;
+updateTimer();
+if(timeLeft<=0) nextQuestion();
+},1000);
+}
+
+function updateTimer(){
+document.getElementById("timer-text").innerText=timeLeft+"s";
+document.getElementById("timer-bar").style.width=(timeLeft/15)*100+"%";
+}
+
+function selectAnswer(i){
+clearInterval(timer);
+document.querySelectorAll(".btn").forEach(b=>b.disabled=true);
+if(i===questions[current].c) score++;
+setTimeout(nextQuestion,500);
+}
+
+function nextQuestion(){
+clearInterval(timer);
+current++;
+if(current<questions.length) showQuestion();
+else finishQuiz();
+}
+
+function finishQuiz(){
+document.getElementById("quiz-box").classList.add("hide");
+document.getElementById("result-box").classList.remove("hide");
+
+let percentage=(score/20)*100;
+let grade="";
+if(percentage>=80) grade="A";
+else if(percentage>=70) grade="B";
+else if(percentage>=60) grade="C";
+else if(percentage>=50) grade="D";
+else grade="Fail";
+
+document.getElementById("score-text").innerText=`${studentName}, Score: ${score}/20`;
+document.getElementById("percentage-text").innerText=`Percentage: ${percentage}%`;
+document.getElementById("grade-text").innerText=`Grade: ${grade}`;
+
+sendToSheet(percentage,grade);
+}
+
+function sendToSheet(percentage,grade){
+
+if(SCRIPT_URL === "YAHAN_APNA_EXEC_LINK_PASTE_KAREIN"){
+document.getElementById("status-text").innerText="Google Sheet not connected.";
+return;
+}
+
+fetch(SCRIPT_URL,{
+method:"POST",
+mode:"no-cors",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+name:studentName,
+score:score,
+percentage:percentage,
+grade:grade
+})
+})
+.then(()=>{
+document.getElementById("status-text").innerText="Result Saved Successfully!";
+})
+.catch(()=>{
+document.getElementById("status-text").innerText="Error syncing database.";
+});
+}
+
+</script>
+</body>
+</html>
